@@ -1,8 +1,10 @@
 # Transcript Extractor
 
-Extrait la transcription d'une vidéo et la sauvegarde en fichier `.txt`.
-Supporte YouTube nativement, 1000+ autres plateformes (Vimeo, Twitch, Dailymotion, etc.) via yt-dlp,
-les playlists HLS (`.m3u`/`.m3u8`) locaux, et la transcription audio via Whisper en fallback.
+> [Lire en français](README.fr.md)
+
+Extracts transcripts from videos and saves them as `.txt` files.
+Supports YouTube natively, 1000+ other platforms (Vimeo, Twitch, Dailymotion, etc.) via yt-dlp,
+local HLS playlists (`.m3u`/`.m3u8`), and audio transcription via Whisper as a fallback.
 
 ## Installation
 
@@ -11,84 +13,84 @@ cd youtube-transcript
 ./setup.sh
 ```
 
-> Whisper nécessite aussi `ffmpeg` : `brew install ffmpeg`
+> Whisper also requires `ffmpeg`: `brew install ffmpeg`
 
-## Utilisation
+## Usage
 
 ```bash
-./transcript "<url>" [options] [dossier_sortie]
-./transcript fichier.m3u [dossier_sortie]
+./transcript "<url>" [options] [output_dir]
+./transcript file.m3u [output_dir]
 ```
 
-> Les URLs contenant `?` doivent être entre guillemets.
+> URLs containing `?` must be quoted.
 
 ### Options
 
 | Option | Description |
 | ------ | ----------- |
-| `--lang <code>` | Langue souhaitée (ex: `fr`, `en`) |
-| `--generic` | Forcer yt-dlp même pour YouTube |
-| `--title <nom>` | Nom de fichier personnalisé |
-| `--whisper` | Activer Whisper en fallback si pas de sous-titres |
-| `--whisper-model <taille>` | Modèle Whisper à utiliser (défaut : `base`) |
+| `--lang <code>` | Desired language (e.g. `fr`, `en`) |
+| `--generic` | Force yt-dlp even for YouTube |
+| `--title <name>` | Custom output filename |
+| `--whisper` | Enable Whisper fallback when no subtitles are available |
+| `--whisper-model <size>` | Whisper model to use (default: `base`) |
 
-### Exemples
+### Examples
 
 ```bash
 # YouTube
 ./transcript "https://www.youtube.com/watch?v=XXXX"
 ./transcript "https://www.youtube.com/watch?v=XXXX" --lang fr
 
-# Autre plateforme (Vimeo, Twitch, etc.) — auto-détecté
+# Other platform (Vimeo, Twitch, etc.) — auto-detected
 ./transcript "https://vimeo.com/123456789" --lang en
 
-# Fallback Whisper si pas de sous-titres
+# Whisper fallback when no subtitles are available
 ./transcript "https://www.youtube.com/watch?v=XXXX" --whisper
 
-# Nom de fichier personnalisé
-./transcript "https://www.youtube.com/watch?v=XXXX" --title "Conférence Lagarde 2024"
+# Custom output filename
+./transcript "https://www.youtube.com/watch?v=XXXX" --title "Lagarde Conference 2024"
 
-# Whisper avec un modèle plus précis
+# Whisper with a more accurate model
 ./transcript "https://www.youtube.com/watch?v=XXXX" --whisper --whisper-model small
 
-# Fichier .m3u local (ex: flux HLS récupéré manuellement)
+# Local .m3u file (e.g. HLS stream retrieved manually via DevTools)
 ./transcript rendition.m3u
 
-# Sauvegarder dans un dossier spécifique
-./transcript "https://www.youtube.com/watch?v=XXXX" --lang en ./transcriptions
+# Save to a specific folder
+./transcript "https://www.youtube.com/watch?v=XXXX" --lang en ./transcripts
 ```
 
-### Modèles Whisper
+### Whisper Models
 
-| Modèle | Taille | Vitesse | Précision |
-| ------ | ------ | ------- | --------- |
-| `tiny` | 75 MB | très rapide | basique |
-| `base` | 145 MB | rapide | correct *(défaut)* |
-| `small` | 466 MB | moyen | bon |
-| `medium` | 1.5 GB | lent | très bon |
-| `large` | 3 GB | très lent | meilleur |
+| Model | Size | Speed | Accuracy |
+| ----- | ---- | ----- | -------- |
+| `tiny` | 75 MB | very fast | basic |
+| `base` | 145 MB | fast | decent *(default)* |
+| `small` | 466 MB | medium | good |
+| `medium` | 1.5 GB | slow | very good |
+| `large` | 3 GB | very slow | best |
 
-### Codes de langue courants
+### Common Language Codes
 
-| Code | Langue    |
-|------|-----------|
-| `fr` | Français  |
-| `en` | Anglais   |
-| `es` | Espagnol  |
-| `de` | Allemand  |
-| `it` | Italien   |
-| `pt` | Portugais |
+| Code | Language |
+| ---- | -------- |
+| `fr` | French |
+| `en` | English |
+| `es` | Spanish |
+| `de` | German |
+| `it` | Italian |
+| `pt` | Portuguese |
 
-## Comportement
+## Behaviour
 
-- Le fichier de sortie est nommé `[id].txt` et sauvegardé dans le dossier courant par défaut.
-- Sans `--lang`, priorité automatique : `fr → en → es → de → it → pt`.
-- Sous-titres manuels prioritaires sur les auto-générés.
-- Avec `--whisper` : tente les sous-titres en premier, bascule sur Whisper si aucun n'est disponible.
-- Whisper tourne entièrement en local, sans API ni coût.
+- Output file is named `[id].txt` and saved in the current directory by default.
+- Without `--lang`, automatic priority: `fr → en → es → de → it → pt`.
+- Manual subtitles take priority over auto-generated ones.
+- With `--whisper`: tries subtitles first, falls back to Whisper if none are available.
+- Whisper runs entirely locally — no API, no cost.
 
 ## Limitations
 
-- Sans `--whisper`, la vidéo doit avoir des sous-titres disponibles.
-- Whisper peut faire des erreurs sur les noms propres et les chiffres.
-- Certaines plateformes (ex: The Economist) sont protégées par Cloudflare — récupérer le fichier `.m3u` manuellement via les DevTools du navigateur.
+- Without `--whisper`, the video must have subtitles available.
+- Whisper may make errors on proper nouns and numbers.
+- Some platforms (e.g. The Economist) are protected by Cloudflare — retrieve the `.m3u` file manually via the browser DevTools.
