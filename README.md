@@ -28,6 +28,7 @@ cd youtube-transcript
 | ------ | ----------- |
 | `--lang <code>` | Langue souhaitée (ex: `fr`, `en`) |
 | `--generic` | Forcer yt-dlp même pour YouTube |
+| `--title` | Utiliser le titre de la vidéo comme nom de fichier |
 | `--whisper` | Activer Whisper en fallback si pas de sous-titres |
 | `--whisper-model <taille>` | Modèle Whisper à utiliser (défaut : `base`) |
 
@@ -43,6 +44,9 @@ cd youtube-transcript
 
 # Fallback Whisper si pas de sous-titres
 ./transcript "https://www.youtube.com/watch?v=XXXX" --whisper
+
+# Nommer le fichier avec le titre de la vidéo
+./transcript "https://www.youtube.com/watch?v=XXXX" --title
 
 # Whisper avec un modèle plus précis
 ./transcript "https://www.youtube.com/watch?v=XXXX" --whisper --whisper-model small
