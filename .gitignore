@@ -1,0 +1,7 @@
+venv/
+*.txt
+*.m3u
+*.m3u8
+__pycache__/
+*.pyc
+.DS_Store
