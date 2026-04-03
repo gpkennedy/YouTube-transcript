@@ -238,6 +238,23 @@ def transcribe_with_whisper(url: str, lang: str | None = None, model_size: str =
     return text, f"{detected_lang} (whisper)", identifier
 
 
+def get_video_title(url: str) -> str | None:
+    try:
+        import yt_dlp
+        ydl_opts = {'quiet': True, 'no_warnings': True, 'skip_download': True}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return info.get('title')
+    except Exception:
+        return None
+
+
+def sanitize_filename(title: str) -> str:
+    title = re.sub(r'[<>:"/\\|?*]', '', title)
+    title = re.sub(r'\s+', '_', title.strip())
+    return title[:100]
+
+
 def save_transcript(text: str, identifier: str, output_dir: str = ".") -> str:
     filename = os.path.join(output_dir, f"{identifier}.txt")
     with open(filename, "w", encoding="utf-8") as f:
@@ -261,6 +278,7 @@ def main():
     force_generic = False
     use_whisper = False
     whisper_model = "base"
+    use_title = False
 
     args = sys.argv[2:]
     i = 0
@@ -277,6 +295,9 @@ def main():
         elif args[i] == "--whisper-model" and i + 1 < len(args):
             whisper_model = args[i + 1]
             i += 2
+        elif args[i] == "--title":
+            use_title = True
+            i += 1
         else:
             output_dir = args[i]
             i += 1
@@ -313,11 +334,17 @@ def main():
             print("Récupération de la transcription...")
             try:
                 text, language = fetch_transcript(video_id, lang)
-            except (NoTranscriptFound, TranscriptsDisabled) as e:
+            except Exception as e:
                 if use_whisper:
-                    text, language, identifier = whisper_fallback(f"Pas de sous-titres YouTube ({type(e).__name__}).")
+                    text, language, identifier = whisper_fallback(f"Sous-titres YouTube indisponibles ({type(e).__name__}).")
                 else:
                     raise
+
+        if use_title and not is_local_m3u:
+            title = get_video_title(url)
+            if title:
+                identifier = sanitize_filename(title)
+                print(f"Titre : {title}")
 
         filename = save_transcript(text, identifier, output_dir)
         print(f"Langue : {language}")
