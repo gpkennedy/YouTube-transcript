@@ -8,8 +8,7 @@ Supporte aussi les playlists HLS (fichiers `.m3u`/`.m3u8`) locaux.
 
 ```bash
 cd youtube-transcript
-python3 -m venv venv
-./venv/bin/pip install youtube-transcript-api yt-dlp
+./setup.sh
 ```
 
 ## Utilisation
