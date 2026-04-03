@@ -278,7 +278,7 @@ def main():
     force_generic = False
     use_whisper = False
     whisper_model = "base"
-    use_title = False
+    use_title = None
 
     args = sys.argv[2:]
     i = 0
@@ -295,9 +295,9 @@ def main():
         elif args[i] == "--whisper-model" and i + 1 < len(args):
             whisper_model = args[i + 1]
             i += 2
-        elif args[i] == "--title":
-            use_title = True
-            i += 1
+        elif args[i] == "--title" and i + 1 < len(args):
+            use_title = args[i + 1]
+            i += 2
         else:
             output_dir = args[i]
             i += 1
@@ -340,11 +340,8 @@ def main():
                 else:
                     raise
 
-        if use_title and not is_local_m3u:
-            title = get_video_title(url)
-            if title:
-                identifier = sanitize_filename(title)
-                print(f"Titre : {title}")
+        if use_title:
+            identifier = sanitize_filename(use_title)
 
         filename = save_transcript(text, identifier, output_dir)
         print(f"Langue : {language}")
