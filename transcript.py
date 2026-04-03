@@ -192,6 +192,52 @@ def fetch_transcript_from_m3u(m3u_path: str) -> tuple[str, str]:
     return " ".join(all_texts), identifier
 
 
+def transcribe_with_whisper(url: str, lang: str | None = None, model_size: str = "base") -> tuple[str, str, str]:
+    """Transcrit l'audio via Whisper quand aucun sous-titre n'est disponible."""
+    try:
+        import whisper
+    except ImportError:
+        raise ImportError(
+            "openai-whisper est requis pour la transcription audio.\n"
+            "Installez-le avec : pip install openai-whisper"
+        )
+    try:
+        import yt_dlp
+    except ImportError:
+        raise ImportError("yt-dlp est requis. Installez-le avec : pip install yt-dlp")
+
+    import tempfile
+    import glob as globmod
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': os.path.join(tmpdir, 'audio.%(ext)s'),
+            'quiet': True,
+            'no_warnings': True,
+            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
+        }
+        print("Téléchargement de l'audio...")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            identifier = re.sub(r'[^\w-]', '_', info.get('id', ''))[:50]
+            if not identifier:
+                import hashlib
+                identifier = hashlib.md5(url.encode()).hexdigest()[:12]
+
+        audio_files = globmod.glob(os.path.join(tmpdir, 'audio.*'))
+        if not audio_files:
+            raise ValueError("Impossible de télécharger l'audio.")
+
+        print(f"Transcription avec Whisper (modèle : {model_size})...")
+        model = whisper.load_model(model_size)
+        result = model.transcribe(audio_files[0], language=lang, fp16=False)
+
+    text = result['text'].strip()
+    detected_lang = result.get('language', lang or 'unknown')
+    return text, f"{detected_lang} (whisper)", identifier
+
+
 def save_transcript(text: str, identifier: str, output_dir: str = ".") -> str:
     filename = os.path.join(output_dir, f"{identifier}.txt")
     with open(filename, "w", encoding="utf-8") as f:
@@ -201,17 +247,20 @@ def save_transcript(text: str, identifier: str, output_dir: str = ".") -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python transcript.py <url|fichier.m3u> [--lang fr] [--generic] [dossier_sortie]")
+        print("Usage: python transcript.py <url|fichier.m3u> [--lang fr] [--generic] [--whisper] [--whisper-model base] [dossier_sortie]")
         print("Exemples:")
         print("  python transcript.py https://www.youtube.com/watch?v=dQw4w9WgXcQ --lang fr")
         print("  python transcript.py https://vimeo.com/123456789")
         print("  python transcript.py rendition.m3u")
+        print("  python transcript.py https://... --whisper --whisper-model small")
         sys.exit(1)
 
     url = sys.argv[1]
     lang = None
     output_dir = "."
     force_generic = False
+    use_whisper = False
+    whisper_model = "base"
 
     args = sys.argv[2:]
     i = 0
@@ -222,15 +271,25 @@ def main():
         elif args[i] == "--generic":
             force_generic = True
             i += 1
+        elif args[i] == "--whisper":
+            use_whisper = True
+            i += 1
+        elif args[i] == "--whisper-model" and i + 1 < len(args):
+            whisper_model = args[i + 1]
+            i += 2
         else:
             output_dir = args[i]
             i += 1
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # Fichier .m3u/.m3u8 local
     is_local_m3u = os.path.isfile(url) and url.endswith(('.m3u', '.m3u8'))
     use_generic = force_generic or not is_youtube_url(url)
+
+    def whisper_fallback(reason: str) -> tuple[str, str, str]:
+        print(f"{reason}")
+        print("Fallback sur Whisper...")
+        return transcribe_with_whisper(url, lang, whisper_model)
 
     try:
         if is_local_m3u:
@@ -239,14 +298,26 @@ def main():
             language = "en"
         elif use_generic:
             print("Récupération des sous-titres (source générique via yt-dlp)...")
-            text, language, identifier = fetch_transcript_generic(url, lang)
+            try:
+                text, language, identifier = fetch_transcript_generic(url, lang)
+            except ValueError as e:
+                if use_whisper:
+                    text, language, identifier = whisper_fallback(f"Pas de sous-titres : {e}")
+                else:
+                    raise
             print(f"Identifiant : {identifier}")
         else:
             video_id = extract_video_id(url)
             identifier = video_id
             print(f"ID vidéo : {video_id}")
             print("Récupération de la transcription...")
-            text, language = fetch_transcript(video_id, lang)
+            try:
+                text, language = fetch_transcript(video_id, lang)
+            except (NoTranscriptFound, TranscriptsDisabled) as e:
+                if use_whisper:
+                    text, language, identifier = whisper_fallback(f"Pas de sous-titres YouTube ({type(e).__name__}).")
+                else:
+                    raise
 
         filename = save_transcript(text, identifier, output_dir)
         print(f"Langue : {language}")
@@ -260,10 +331,10 @@ def main():
         print(f"Erreur : {e}")
         sys.exit(1)
     except TranscriptsDisabled:
-        print("Erreur : les transcriptions sont désactivées pour cette vidéo.")
+        print("Erreur : les transcriptions sont désactivées. Relancez avec --whisper pour transcrire l'audio.")
         sys.exit(1)
     except NoTranscriptFound:
-        print("Erreur : aucune transcription disponible pour cette vidéo.")
+        print("Erreur : aucune transcription disponible. Relancez avec --whisper pour transcrire l'audio.")
         sys.exit(1)
     except Exception as e:
         print(f"Erreur inattendue : {e}")
